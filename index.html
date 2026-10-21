@@ -449,6 +449,7 @@ button { font: inherit; }
   overflow-x: auto;
 }
 .grammar-help.show { display: block; }
+body.assessment-mode .hud-title::after { content: ' · Assessment'; color: var(--gold); font-size: 0.75em; }
 .grammar-help strong { color: var(--gold-lt); }
 .grammar-help table { border-collapse: collapse; margin-top: 8px; min-width: 100%; }
 .grammar-help td, .grammar-help th { padding: 3px 9px; text-align: left; border-bottom: 1px solid rgba(200,150,10,0.1); font-size: 0.86rem; white-space: nowrap; }
@@ -587,6 +588,10 @@ body::before{background:radial-gradient(ellipse at 20% 0%,#34525444,transparent 
     <div class="setup-section">
       <div class="setup-h">Question types</div>
       <div class="ticks" id="qtypes"></div>
+    </div>
+    <div class="setup-section">
+      <div class="setup-h">Help</div>
+      <div class="ticks"><label class="tick"><input type="checkbox" id="helpToggle"><span>Grammar table button<span class="ch">untick for assessment mode</span></span></label></div>
     </div>
     <div class="setup-status" id="setupStatus"></div>
     <div class="start-row">
@@ -1312,6 +1317,7 @@ const store = {
 };
 let ticked = new Set(store.get('grammar', 'ABCDEFGHIJKLMNOPQR'.split('')));
 let types = new Set(store.get('types', QTYPES.map(q => q.k)));
+let helpEnabled = store.get('help', true);
 
 function buildSetup() {
   $('presets').innerHTML = PRESETS.map((p, i) => `<button class="preset-btn" data-preset="${i}">${esc(p.label)}</button>`).join('')
@@ -1329,6 +1335,7 @@ function buildSetup() {
     e.target.checked ? ticked.add(k) : ticked.delete(k);
     syncSetup();
   });
+  $('helpToggle').addEventListener('change', e => { helpEnabled = e.target.checked; store.set('help', helpEnabled); });
   $('qtypes').addEventListener('change', e => {
     const k = e.target.dataset.t; if (!k) return;
     e.target.checked ? types.add(k) : types.delete(k);
@@ -1340,6 +1347,7 @@ function buildSetup() {
 function syncSetup() {
   document.querySelectorAll('[data-g]').forEach(i => i.checked = ticked.has(i.dataset.g));
   document.querySelectorAll('[data-t]').forEach(i => i.checked = types.has(i.dataset.t));
+  $('helpToggle').checked = helpEnabled;
   const key = [...ticked].sort().join('');
   document.querySelectorAll('.preset-btn[data-preset]').forEach(b => {
     const p = b.dataset.preset;
@@ -1502,6 +1510,7 @@ function buildGame() {
 let game = null;
 
 function startGame() {
+  document.body.classList.toggle('assessment-mode', !helpEnabled);
   game = { story: pick(STORIES), qs: buildGame(), i: 0, score: 0, attempts: 0, answered: false, placed: [], results: [] };
   $('storyIcon').textContent = game.story.icon;
   $('storyTitle').textContent = game.story.title;
@@ -1591,7 +1600,7 @@ function renderPuzzle() {
   for (let a = 0; a < maxAttempts(q); a++) h += `<div class="attempt-dot" id="adot-${a}"></div>`;
   h += '</div>';
 
-  const t = TABLES[q.hint];
+  const t = helpEnabled ? TABLES[q.hint] : null;
   if (t) {
     h += `<button class="help-btn" id="helpBtn">📖 Grammar table</button><div class="grammar-help" id="gramHelp"><strong>${esc(t.title)}</strong><table><tr>${t.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr>`;
     t.rows.forEach(row => { h += '<tr>' + row.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>'; });
